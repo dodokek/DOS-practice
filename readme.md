@@ -4,3 +4,4 @@
 
 Полезные ссылки
 http://spike.scu.edu.au/~barry/interrupts.html#ah01 - Документация по int 21h.
+https://www.cs.uaf.edu/courses/cs301/2014-fall/notes/memory/ - Немного про db-шчки, чтобы хоть как-то выделять память.
