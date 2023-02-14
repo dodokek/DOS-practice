@@ -119,3 +119,100 @@ reg2hex         proc
 
                 ret
                 endp
+
+
+;------------------------------------------------
+;   Prints dec number on the screen 
+;------------------------------------------------
+;	Entry:	  AX - value to print
+;             x/y - coordinates
+;	Exit:     None
+;	Expects:  ES = 0b800h, x != null, y != null
+;	Destroys: ax, dx 
+;------------------------------------------------
+print_dec       proc
+                mov dl, 10d                 ; setting the divider
+                mov di, 32 + y*80 + x      ; the size of two words (reg ax) + coordinates offset
+                std                        ; operand which tells to decrement di each time stosw is called
+
+
+@@L1:           div dl          ; dividing the ax             
+                add ah, 48d     ; adding to surplus the constant to get ASCII of '0' or '1' 
+                
+                mov dh, al      ; saving the result of division 
+
+                xchg al, ah      ; swapping al, ah
+                mov ah, 00010100b ; setting color and blinking
+
+                stosw           ; mov es:[di], al
+
+                mov al, dh      ; returning the value of the result
+                mov ah, 0       ; deleting surplus
+                
+                cmp al, 0       ; if there is nothing to divide - exit
+                jne @@L1
+
+                ret
+                endp
+
+
+;------------------------------------------------
+;   Reads line from stdin until \n 
+;------------------------------------------------
+;	Entry:	  keyboard input
+;                 di - pointer to string to write into
+;	Exit:     None
+;	Expects:  none
+;	Destroys: ax, di 
+;------------------------------------------------
+getline     proc
+            mov ax, 0                   ; preparing ax for double penetration
+
+            mov ah, 01h                 ; going to getch() mode      
+
+@@l1:       
+            int 21h                     ; getch()
+            cmp al, 0dh                 ; reading until stop symbol
+            je @@end
+
+            mov [di], al                ; symb -> memory
+            inc di                      ; ptr++
+            jmp @@l1
+@@end:
+            mov byte ptr [di], 024h      ; replace stop sym with endline "$"
+
+            ; mov di, offset mystring
+            ; call printline			     ; printing
+
+            ret
+            endp
+
+
+;------------------------------------------------
+;   Prints line until special symbol + \n 
+;------------------------------------------------
+;	Entry:	  di - pointer to string
+;	Exit:     None
+;	Expects:  not null db
+;	Destroys: ax, di 
+;------------------------------------------------
+printline   proc
+            mov ah, 02h                 ; going to putch() mode      
+
+@@l1:       
+            mov dl, [di]                ; mobing to dl symbol to print
+
+            cmp dl, "$"                 ; reading until stop symbol "$"
+            je @@end
+            
+            int 21h                     ; getch()
+
+            inc di                      ; ptr++
+            jmp @@l1
+@@end:
+            mov dl, 0dh                 ; puts \n
+            int 21h
+
+            ret
+            endp
+
