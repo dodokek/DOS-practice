@@ -1,0 +1,121 @@
+
+;------------------------------------------------
+;	Prints string
+;------------------------------------------------
+;	Entry:    string in dx
+;	Exit:     not defined
+;	Expects:  none
+;	Destroys: ah, dx 
+;------------------------------------------------
+
+Puts	proc
+	
+	mov ah, 09h		    ; puts()
+	int 21h			    ; by interupting prog, printing the message
+
+	ret
+	endp
+
+;------------------------------------------------
+
+
+;------------------------------------------------
+;	Fills the screen with specific symbol
+;------------------------------------------------
+;	Entry:	  AH = color attr
+;		  AL = sym
+;	Exit:     None
+;	Expects:  ES = 0b800h
+;	Destroys: BX, CX
+;------------------------------------------------
+Clear 		proc
+                xor bx, bx
+                mov cx, 80d * 25d
+
+                mov dx, 2500
+
+        @@L1:   mov es:[bx], ax
+                add bx, 2
+                dec dx
+                cmp dx, 0
+                jne @@L1
+
+		ret
+		endp
+;------------------------------------------------
+
+
+;------------------------------------------------
+;   Translates value in register ax to bin format 
+;   prints it on the sreen
+;------------------------------------------------
+;	Entry:	  AX - value to translate, x/y - coordinates
+;	Exit:     None
+;	Expects:  ES = 0b800h, x != null, y != null
+;	Destroys: ax, dx 
+;------------------------------------------------
+reg2bin         proc
+                mov dl, 2d                 ; setting the divider
+                mov di, 32 + y*80 + x      ; the size of two words (reg ax) + coordinates offset
+                std                        ; operand which tells to decrement di each time stosw is called
+
+
+@@L1:             div dl          ; dividing the ax             
+                add ah, 48d     ; adding to surplus the constant to get ASCII of '0' or '1' 
+                
+                mov dh, al      ; saving the result of division 
+
+                xchg al, ah      ; swapping al, ah
+                mov ah, 00010100b ; setting color and blinking
+
+                stosw           ; mov es:[di], al
+
+                mov al, dh      ; returning the value of the result
+                mov ah, 0       ; deleting surplus
+                
+                cmp al, 0       ; if there is nothing to divide - exit
+                jne @@L1
+
+                ret
+                endp
+
+
+;------------------------------------------------
+;   Translates value in register ax to bin format 
+;   prints it on the sreen
+;------------------------------------------------
+;	Entry:	  AX - value to translate, x/y - coordinates
+;	Exit:     None
+;	Expects:  ES = 0b800h, x != null, y != null
+;	Destroys: ax, dx 
+;------------------------------------------------
+reg2hex         proc
+                mov dl, 16d                 ; setting the divider
+                mov di, 32 + y*80 + x      ; the size of two words (reg ax) + coordinates offset
+                std                        ; operand which tells to decrement di each time stosw is called
+
+
+@@L1:             div dl          ; dividing the ax             
+                
+                cmp ah, 10
+                jge else_1
+                    add ah, 48d     ; adding to surplus the constant to get ASCII of 0..9 
+                    jmp endif_1
+                else_1:
+                    add ah, 55d     ; handling A,B,C,D,E,F letters in surplus
+                endif_1:
+
+                mov dh, al      ; saving the result of division 
+                xchg al, ah      ; swapping al, ah
+                mov ah, 00010100b ; setting color and blinking
+
+                stosw           ; mov es:[di], al
+
+                mov al, dh      ; returning the value of the result
+                mov ah, 0       ; deleting surplus
+                
+                cmp al, 0       ; if there is nothing to divide - exit
+                jne @@L1
+
+                ret
+                endp
