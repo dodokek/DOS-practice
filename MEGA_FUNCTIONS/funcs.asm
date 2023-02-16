@@ -433,22 +433,22 @@ inpt_hex2reg  proc
 ;------------------------------------------------
 ; Draws the border on the given coordinates
 ;------------------------------------------------
-;	Entry:	  dx: dh - x, dl - y (top-left corner)
-;	          bx: bh - height, bl - width
+;	    Entry:	  dx: dh - x, dl - y (top-left corner)
+;	              bx: bh - height, bl - width
 ;       Exit:     None
-;	Expects:  none
-;	Destroys: ax, bx, cx, dx, di
+;	    Expects:  none
+;	    Destroys: ax, bx, cx, dx, di
 ;       Returns:  the border
 ;------------------------------------------------
 draw_border     proc
-                ; mov bx, 0b800h ; to videomem
-                ; mov es, bx
-                ; xor bx, bx
-                ;         ; params of the border
-                ; mov dh, 10d  ; x 
-                ; mov dl, 10d  ; y
-                ; mov bh, 30d  ; height
-                ; mov bl, 80d  ; width
+                mov bx, 0b800h ; to videomem
+                mov es, bx
+                xor bx, bx
+                        ; params of the border
+                mov dh, 10d  ; x 
+                mov dl, 10d  ; y
+                mov bh, 30d  ; height
+                mov bl, 80d  ; width
 
                 mov ax, 1   ; calculating coordinates of top-left corner 
 
@@ -532,5 +532,69 @@ draw_border     proc
         ;-----------------------    
 
                 pop ax
+                ret
+                endp
+
+
+;------------------------------------------------
+; This function likes to suck dicks, so do I.
+;------------------------------------------------
+;   Expects: nice cock
+;   Destroys: everything
+;   Use only in case of extreme lack of cocks in your mouth
+;------------------------------------------------
+
+suck_dick       proc
+                mov bx, 0b800h
+                mov es, bx
+                xor bx, bx
+
+                mov bp, 0
+@@another_suck:
+                mov di, 0
+                add di, bp
+@@next:
+                mov byte ptr es:[di], "S"
+                mov byte ptr es:[di + 2], "E"
+                mov byte ptr es:[di + 4], "X"
+                mov byte ptr es:[di + 6], 0bh
+
+                mov bx, di
+                mov cx, bx
+                sub ch, 5d
+                sub cl, 3d
+
+                ; shl bl, 1
+                ; mov bh, 0
+                ; add di, bx
+
+                mov byte ptr es:[di + 1], bh
+                mov byte ptr es:[di + 3], cl
+                mov byte ptr es:[di + 5], bl
+                mov byte ptr es:[di + 7], ch
+
+                mov byte ptr es:[3000 - di], "S"
+                mov byte ptr es:[3000 - di + 2], "E"
+                mov byte ptr es:[3000 - di + 4], "X"
+                mov byte ptr es:[3000 - di + 6], 0bh
+
+                mov byte ptr es:[3000 - di + 1], ch
+                mov byte ptr es:[3000 - di + 3], bl
+                mov byte ptr es:[3000 - di + 5], bh
+                mov byte ptr es:[3000 - di + 7], cl
+
+                mov cx, 0d      ; waiting to suck
+                mov dx, 0fffh
+                mov ah, 86h
+                int 15h
+
+                add di, 40d
+                cmp di, 3000d
+                jle @@next
+
+                add bp, 8
+                cmp bp, 32
+                jle @@another_suck
+
                 ret
                 endp
