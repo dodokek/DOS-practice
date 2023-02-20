@@ -15,18 +15,18 @@ arr_height = 5
 
 Start:
 
-call handle_cmd
+; call handle_cmd
 
 mov bx, 0b800h
 mov es, bx
 xor bx, bx
 
-mov si, offset user_border
+mov di, offset border_1
 
-mov bh, byte ptr [si + arr_height]
-mov bl, byte ptr [si + arr_width]
-mov dh, byte ptr [si + arr_x]
-mov dl, byte ptr [si + arr_y]
+mov bh, byte ptr [di + arr_height]
+mov bl, byte ptr [di + arr_width]
+mov dh, byte ptr [di + arr_x]
+mov dl, byte ptr [di + arr_y]
 
 call draw_border
 
@@ -167,17 +167,17 @@ str_to_int      proc
 ;------------------------------------------------
 ; Draws the border on the given coordinates
 ;------------------------------------------------
-;	Entry:	  dx: dh - x, dl - y (top-left corner) - now calculated automaticly to centrate the border
+;	Entry:	  dx: dh - x, dl - y (top-left corner) 
 ;	          bx: bh - height, bl - width
-;                 SI - pointer to preset array
+;                 di: pointer to preset_array
 ;       Exit:     None
 ;	Expects:  ES: 0b800h
 ;	Destroys: ax, bx, cx, dx, di
 ;       Returns:  the border
 ;------------------------------------------------
 draw_border     proc
-
                 ; call centr_border
+                push di     ; storing adress of preset array
 
                 mov ax, 1   ; calculating coordinates of top-left corner 
 
@@ -198,7 +198,9 @@ draw_border     proc
 
                 push ax     ; pushing the res to have access to it later on.
                 ; transfering bl as width and ax as starting
-                
+                pop dx  ; giving to dx adress of preset array
+                push dx
+                ; mov dx, offset border_1 ; dx = preset array pointer
                 call draw_horizontal
 
                 pop ax          ; printing border symbols
@@ -226,7 +228,9 @@ draw_border     proc
                 add ax, cx      ; ax = coords of bottom left corn
                 push ax         ; storing coords of bottom left
 
-                
+                pop dx  ; giving to dx adress of preset array
+                push dx
+                ; mov dx, offset border_1 ; dx = preset array pointer
                 call draw_horizontal
                 
                 pop ax          ; printing border symbols
@@ -241,7 +245,10 @@ draw_border     proc
         ; ----------------------    
                 pop ax             ; drawing vertical line from top left corner
                 push ax
-                
+
+                pop dx  ; giving to dx adress of preset array
+                push dx
+                ; mov dx, offset border_1 ; dx = preset array pointer
                 call draw_vertical
 
                 pop ax            ; drawing vertical line from top right corner
@@ -250,7 +257,10 @@ draw_border     proc
                 add cx, cx
                 add ax, cx
 
+                pop dx  ; giving to dx adress of preset array
+                ; mov dx, offset border_1 ; dx = preset array pointer
                 call draw_vertical
+
 
                 ret
 
@@ -261,7 +271,7 @@ draw_border     proc
 ;------------------------------------------------
 ;   Entry:   AX - left point value-coordinates
 ;            BL - width
-;            SI - preset array pointer
+;            DX - preset array pointer
 ;   Expects: es = 0b800h
 ;   Destroys: AX, CX, DX, DI
 ;------------------------------------------------
@@ -275,6 +285,7 @@ draw_horizontal proc
 
                 mov cx, ax  ; remembering starting point for comparison
 @@next:
+                mov si, dx
                 mov ah, [si + arr_clr] ; adressing to preset array to get color
                 mov al, [si + arr_chr]  ; adressing to preset array to get char
 
@@ -291,17 +302,20 @@ draw_horizontal proc
 ;------------------------------------------------
 ;   Entry:   AX - upper point coordinates
 ;            BH - height
-;            si - preset array pointer
+;            DX - preset array pointer
 ;   Expects: es = 0b800h
 ;   Destroys: AX, CX, DX, DI
 ;------------------------------------------------
 draw_vertical proc
+                push dx         ; storing dx                             1
                 push ax         ; storing ax for later                   2
 
                 xor ax, ax      ; ax = 0
                 mov al, bh      ; calculating offset for bottom left corner
                 mov cx, 80d
+                push dx         ; saving dx reg from erasing             3
                 mul cx          ; al  = height * 80
+                pop dx          ;                                        1
                 mov cx, ax      ; storing res in cx
                 pop ax          ; getting coords of bottom point         2
 
@@ -311,6 +325,8 @@ draw_vertical proc
                 sub di, 160d    ; excluding corner 1
                 add ax, 160d    ; excluding corner 2
                 
+                pop dx          ; restoring pointer to preset array       3
+                mov si, dx
                 mov cl, [si + arr_clr]    ; cl = preset color  
                 mov ch, [si + arr_chr]    ; ch = prest symbol
 
@@ -348,10 +364,9 @@ centr_border   proc
                 ret
                 endp
 
-
                 ;  X    Y    Color Char Width Height
-border_1:       db 5d, 20d, 0cbh, 0ch, 60d,  20d
-user_border:    db 10 dup(40)
+border_1:       db 40d, 20d, 0cbh, 0bh, 60d,  20d
+user_border:    db 20 dup(40)
 cmd_buffer:     db 20 dup(40)
 
 
