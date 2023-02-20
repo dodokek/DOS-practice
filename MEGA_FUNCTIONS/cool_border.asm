@@ -11,7 +11,8 @@ arr_clr = 2
 arr_chr = 3
 arr_width = 4
 arr_height = 5
-
+arr_fill = 6
+arr_fill_clr = 7
 
 Start:
 
@@ -177,8 +178,6 @@ str_to_int      proc
 ;------------------------------------------------
 draw_border     proc
 
-                ; call centr_border
-
                 mov ax, 1   ; calculating coordinates of top-left corner 
 
                 mov ch, 0   ; deleting trash
@@ -197,8 +196,10 @@ draw_border     proc
                 add ax, cx    
 
                 push ax     ; pushing the res to have access to it later on.
-                ; transfering bl as width and ax as starting
-                
+                call fill_border
+                pop ax
+                push ax
+
                 call draw_horizontal
 
                 pop ax          ; printing border symbols
@@ -286,6 +287,37 @@ draw_horizontal proc
                 ret
                 endp
 
+
+;------------------------------------------------
+; Draws horizontal line in border for filler 
+;------------------------------------------------
+;   Entry:   AX - left point value-coordinates
+;            BL - width
+;            SI - preset array pointer
+;   Expects: es = 0b800h
+;   Destroys: AX, CX, DX, DI
+;------------------------------------------------
+draw_horizontal_fill proc
+                mov di, ax  ; putting in di the coords of top right corner.  
+                xor cx, cx  ; calculating di
+                mov cl, bl  ; cl = width
+                add di, cx  ; adding width
+                add di, cx  ; adding width again cuz videomem is wider 2 times
+                std         ; every stosw it will decrement
+
+                mov cx, ax  ; remembering starting point for comparison
+@@next:
+                mov ah, [si + arr_fill] ; adressing to preset array to get color
+                mov al, [si + arr_fill_clr]  ; adressing to preset array to get char
+
+                stosw             ; mov es:[di], ax
+
+                cmp di, cx        ; exiting the loop in case di in the top left corner
+                jge @@next
+
+                ret
+                endp
+
 ;------------------------------------------------
 ; Draws horizontal line in border 
 ;------------------------------------------------
@@ -322,6 +354,36 @@ draw_vertical proc
 
                 cmp di, ax        ; end of cycle if di is on top left corn
                 jge @@next
+
+                ret
+                endp
+
+;------------------------------------------------
+; Fills innerside of border with symbol
+; draws lines by line
+;------------------------------------------------
+;	Entry:	  ax: top-left corner
+;	          bx: bh - height, bl - width
+
+;       Exit:     None
+;	Expects:  ES: 0b800h
+;	Destroys: ax, cx
+;       Returns:  the border
+;------------------------------------------------
+fill_border     proc
+                mov ch, 1               ; counter for lines
+
+@@next:
+                push ax
+                push cx
+                call draw_horizontal_fill
+                pop cx
+                pop ax
+
+                add ax, 160
+                add ch, 2
+                cmp ch, bh
+                jle @@next
 
                 ret
                 endp
