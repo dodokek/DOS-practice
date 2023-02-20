@@ -1,38 +1,59 @@
 .model tiny
 .code
+.386
 locals @@
 
 org 100h
 
+; border.com 20 30 10 30 16 29 12 1 2 
 
-arr_x = 0
-arr_y = 1
-arr_clr = 2
-arr_chr = 3
-arr_width = 4
-arr_height = 5
-arr_fill = 6
-arr_fill_clr = 7
+arr_clr = 0d
+arr_chr = 1d
+arr_width = 2d
+arr_height = 3d
+arr_fill = 4d
+arr_fill_clr = 5d
+use_preset = 6d
+preset_num = 7d
+inner_text = 8d
+
+preset_size = 6d
 
 Start:
 
-call handle_cmd
+                call handle_cmd
 
-mov bx, 0b800h
-mov es, bx
-xor bx, bx
+                mov bx, 0b800h
+                mov es, bx
+                xor bx, bx
 
-mov si, offset user_border
+                mov si, offset user_border
 
-mov bh, byte ptr [si + arr_height]
-mov bl, byte ptr [si + arr_width]
-mov dh, byte ptr [si + arr_x]
-mov dl, byte ptr [si + arr_y]
+                mov al, byte ptr [si + preset_num]      ; just checking
+                xor ax, ax                              ; ax = 0
 
-call draw_border
+        cmp byte ptr [si + use_preset], 0               ; cheching if there is option to use preset
+        je @@no_preset
 
-mov ax, 4c00h       ; exit(0)
-int 21h
+                mov al, byte ptr [si + preset_num]      ; preset_arr[n]
+                mov si, offset border_1                 ; calculating the pointer to preset array
+                dec al
+                mov ah, preset_size
+                mul ah 
+                mov ah, 0
+                add si, ax                              ; shifting pointer to needed preset
+
+        @@no_preset:
+                mov bh, byte ptr [si + arr_height]
+                mov bl, byte ptr [si + arr_width]
+                mov dh, 10d
+                mov dl, 20d
+
+
+                call draw_border
+
+                mov ax, 4c00h       ; exit(0)
+                int 21h
 
 
 ;------------------------------------------------
@@ -411,10 +432,12 @@ centr_border   proc
                 endp
 
 
-                ;  X    Y    Color Char Width Height
-border_1:       db 5d, 20d, 0cbh, 0ch, 60d,  20d
-user_border:    db 10 dup(40)
-cmd_buffer:     db 20 dup(40)
+                ;   Color Char Width Height FillerChr  FillerClr
+border_1:       db  0cbh, 0ch, 60d,  20d,   10d,       45d    
+border_2:       db  0ceh, 40h, 20d,  10d,   11d,       45d    
+border_3:       db  0feh, 30h, 10d,  24d,   46d,       45d  
+user_border:    db 11d dup(60d)
+cmd_buffer:     db 11d dup(40d)
 
 
 include ../mainf.asm
