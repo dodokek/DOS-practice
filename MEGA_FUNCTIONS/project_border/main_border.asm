@@ -5,19 +5,22 @@ locals @@
 
 org 100h
 
-; border.com 20 30 10 30 16 29 12 1 2 
-
-arr_clr = 0d
-arr_chr = 1d
-arr_width = 2d
-arr_height = 3d
-arr_fill = 4d
-arr_fill_clr = 5d
-use_preset = 6d
-preset_num = 7d
-inner_text = 8d
-
-preset_size = 6d
+;   1    2    3     4    5      6     7           8         9         10        11    12
+;   X    Y    Color Char Width Height FillerChr  FillerClr UsePreset? Prest_Num Inner text
+; border.com 10.10.20.30.10.30.16.29.12.1.2 
+arr_x   = 0d
+arr_y   = 1d
+arr_clr = 2d
+arr_chr = 3d
+arr_width = 4d
+arr_height = 5d
+arr_fill = 6d
+arr_fill_clr = 7d
+use_preset = 8d
+preset_num = 9d
+inner_text = 10d
+;------------------------------------------
+preset_size = 8d        ; DONT FORGET TO CHANGE IF AMOUNT OF ATTRS IS CHANGED!
 
 Start:
 
@@ -27,9 +30,9 @@ Start:
                 mov es, bx
                 xor bx, bx
 
-                mov ah, 11d
-                mov al, 11d
-                call Clear
+                ; mov ah, 0d      ; clearing the screen
+                ; mov al, 0d
+                ; call Clear
 
                 mov si, offset user_border
 
@@ -48,10 +51,10 @@ Start:
                 add si, ax                              ; shifting pointer to needed preset
 
         @@no_preset:
-                mov bh, byte ptr [si + arr_height]
+                mov bh, byte ptr [si + arr_height]      ; passing coordinates and width
                 mov bl, byte ptr [si + arr_width]
-                mov dh, 10d
-                mov dl, 20d
+                mov dh, byte ptr [si + arr_x]
+                mov dl, byte ptr [si + arr_y]
 
 
                 call draw_border
@@ -66,7 +69,7 @@ Start:
 ;	Entry:	  cmd line, not empty ofc
 ;       Exit:     None
 ;	Expects:  None
-;	Destroys: 
+;	Destroys: AX, DI, SI, BP
 ;       Returns:  values from cmd line stored in the "user_array"
 ;------------------------------------------------
 handle_cmd      proc
@@ -76,7 +79,7 @@ handle_cmd      proc
                 mov si, 0082h              ; si points to begin of cmd line
 
 @@L1:
-                cmp byte ptr [si - 1], 0dh              ; reading cmd_line until !
+                cmp byte ptr [si - 1], 0dh              ; reading cmd_line until \n
                 je @@exit_L1
 
   @@next:
@@ -86,38 +89,53 @@ handle_cmd      proc
                 inc si                     ; si++
                 inc di                     ; di++
 
-                cmp byte ptr [si], " "     ; NEED TO HANDLE SPACE AND ENDCMD LINE SYMVOLS!!!
+                cmp byte ptr [si], "."     ; Handling the end of argument
                 jne @@check
                 jmp @@skip_space_if
   @@check:
-                cmp byte ptr [si], 0dh
+                cmp byte ptr [si], 0dh     ; cheching if it is the end of cmd line
                 jne @@next
 
 @@skip_space_if:
                 
                 
-                mov byte ptr [di], "$"      ; moving endline symbol  
-                
+                mov byte ptr [di], "$"      ; moving endline symbol to cmd_buffer  
+
+                cmp bp, inner_text
+                je @@fill_text
+
+
                 ; translation and storing to user_border
                 
-                ; mov dx, di      ; cx = len
-                ; inc dx          ; skipping $
-
                 dec di                          ; skipping $
-                call str_to_int
+                call str_to_int                 ; translating string stored in cmd_buffer to ax
                 mov di, offset user_border      ; storing ax in user border
                 add di, bp                      ; moving to cur arg pos
-                mov byte ptr [di], al
+                mov byte ptr [di], al           ; moving to user_prest array another cmd line argument
                 
-                add bp, 1d                          ; incrementing indx 
+                add bp, 1d                      ; incrementing indx of user preset array 
                 
                 inc si                          ; skipping space moving to another argv
-                mov di, offset cmd_buffer
+                mov di, offset cmd_buffer       ; &cmd_buffer = begin
 
                 jmp @@L1
 @@exit_L1:
+@@fill_text:   ; here i am writing to db "user_text" text from cmd line until 0dh
 
-                mov dx, offset user_border
+                mov di, offset cmd_buffer       ; di = &cmd_buffer
+                mov si, offset user_border      ; si = &user_border
+                add si, inner_text              ; si = user_border[inner_text]
+  @@next2:     
+                mov ax, [di]                    ; ax = cmd_buffer[i]
+                mov [si], ax                    ; user_border[inner_text + i] = ax
+
+                inc di                          ; di++
+                inc si                          ; si++
+
+                cmp byte ptr [di-1], "$"          ; copying until the end of cmd_buffer
+                jne @@next2
+
+                mov dx, offset user_border      ; returning the pointer to user_border
                 call Puts
                 ret
                 endp
@@ -436,37 +454,13 @@ centr_border   proc
                 endp
 
 
-;------------------------------------------------
-;	Fills the screen with specific symbol
-;------------------------------------------------
-;	Entry:	  AH = color attr
-;		  AL = sym
-;	Exit:     None
-;	Expects:  ES = 0b800h
-;	Destroys: BX, CX
-;------------------------------------------------
-Clear 		proc
-                xor bx, bx
 
-                mov dx, 2500
-
-        @@L1:   mov es:[bx], ax
-                add bx, 2
-                dec dx
-                cmp dx, 0
-                jne @@L1
-
-		ret
-		endp
-;------------------------------------------------
-
-
-
-                ;   Color Char Width Height FillerChr  FillerClr
-border_1:       db  0cbh, 0ch, 60d,  20d,   10d,       45d    
-border_2:       db  0ceh, 40h, 20d,  10d,   11d,       45d    
-border_3:       db  0feh, 30h, 10d,  24d,   46d,       45d  
+                ;   X    Y    Color Char Width Height FillerChr  FillerClr
+border_1:       db  20d, 20d, 0cbh, 0ch, 60d,  20d,   10d,       45d    
+border_2:       db  10d, 10d, 0ceh, 40h, 20d,  10d,   11d,       45d    
+border_3:       db  14d, 14d, 0feh, 30h, 10d,  24d,   46d,       45d  
 user_border:    db 11d dup(60d)
+user_text:      db 12d dup(40d)
 cmd_buffer:     db 11d dup(40d)
 
 
