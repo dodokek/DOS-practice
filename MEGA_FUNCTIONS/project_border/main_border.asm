@@ -5,9 +5,10 @@ locals @@
 
 org 100h
 
-;   1    2    3     4    5      6     7           8         9         10        11    12
-;   X    Y    Color Char Width Height FillerChr  FillerClr UsePreset? Prest_Num Inner text
+;   1    2    3     4    5      6     7           8         9         10        11    
+;   X    Y    Color Char Width Height FillerChr  FillerClr UsePreset? Prest_Num Inner_text
 ; border.com 10.10.20.30.10.30.16.29.12.1.2 
+
 arr_x   = 0d
 arr_y   = 1d
 arr_clr = 2d
@@ -243,6 +244,13 @@ draw_border     proc
                 pop ax
                 push ax
 
+                mov di, ax              ; storing top-left corner to di for function
+                push si                 ; storing si from destroying
+                call print_text_border
+                pop si
+                pop ax
+                push ax
+
                 call draw_horizontal
 
                 pop ax          ; printing border symbols
@@ -427,6 +435,40 @@ fill_border     proc
                 add ch, 2
                 cmp ch, bh
                 jle @@next
+
+                ret
+                endp
+
+
+;------------------------------------------------
+; Writes text inside the border
+;------------------------------------------------
+;	Entry:	  di: top-left corner of border
+;                 si: pointer to preset array
+;	          bx: bh - height, bl - width
+;       Exit:     None
+;	Expects:  ES: 0b800h
+;	Destroys: ax, cx di, si
+;       Returns:  text in the border
+;------------------------------------------------
+print_text_border     proc
+                add si, inner_text      ; di = preset_array[inner_text]
+                add di, 320d            ; y + 2
+                add di, 4d              ; x + 2
+
+
+                mov cl, 0               ; length counter to move string to new line
+@@next:
+                mov al, byte ptr [si]   ; ah = preset_array[i]  
+                mov ah, 0ceh            ; setting color
+
+                stosw                   ; mov es:[di], ax
+ 
+                inc si                  ; &preset_array++
+                add di, 4d              ; next videomem cell, adding 4 because i got flag std and i don't want to change it
+                inc cl                  ; incrementing length counter
+                cmp byte ptr [si], "$"
+                jne @@next
 
                 ret
                 endp
