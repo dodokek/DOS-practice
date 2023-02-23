@@ -41,13 +41,29 @@ Start:
         cmp byte ptr [si + use_preset], 0               ; cheching if there is option to use preset
         je @@no_preset
 
-                mov al, byte ptr [si + preset_num]      ; preset_arr[n]
-                mov si, offset border_1                 ; calculating the pointer to preset array
-                dec al
-                mov ah, preset_size
-                mul ah 
-                mov ah, 0
-                add si, ax                              ; shifting pointer to needed preset
+                mov al, byte ptr [si + preset_num]      ; now in al the number of preset to load
+                mov si, offset border_1                 ; si = ptr to begin of first preset
+
+                mov cl, 1                               ; enabling counter of preset arrays
+
+        @@next:
+                cmp al, cl                              ; checking if we are on the right preset
+                je @@end_calc_preset
+
+                inc si                                  ; &preset_arrays++
+                
+                cmp byte ptr [si], "$"                  ; if "$$" is found counter of presets increaces and si moves
+                jne @@no_end
+                cmp byte ptr [si+1], "$"
+                jne @@no_end
+
+                inc cl                                  ; counter of presets ++
+                add si, 2d                              ; &preset_array+=2
+
+                @@no_end:
+
+                jmp @@next
+        @@end_calc_preset:
 
         @@no_preset:
                 mov bh, byte ptr [si + arr_height]      ; passing coordinates and width
@@ -541,11 +557,11 @@ centr_border   proc
 
 
 preset_size = 48d        ; DONT FORGET TO CHANGE IF AMOUNT OF ATTRS IS CHANGED!
-                ;   X    Y    Color Char Width Height FillerChr  FillerClr      ignr   text             ; don't forget !!!!!!!!!!!!
-border_0:       db  0d, 0d,   0h,   0h,  0d,   0d,    0d,         0d,           0, 0, "Your advertisment                     "  
-border_1:       db  20d, 20d, 0cbh, 0ch, 20d,  20d,   10d,       45d,           0, 0, "&173&D&165&e&012&d,po&130&pu##mil??$  "   ; all presets must be the same size!!!
-border_2:       db  10d, 10d, 0ceh, 40h, 14d,  10d,   11d,       45d,           0, 0, "Goyda goyda goyda$                    "    
-border_3:       db  14d, 14d, 0feh, 30h, 10d,  24d,   46d,       45d,           0, 0, "Meow meow motherfucker$               "  
+                ;   X    Y    Color Char Width Height FillerChr  FillerClr      ignr   text             ; NO SYMBOLS AFTER $$ FUCKERS!!!
+border_0:       db  0d, 0d,   0h,   0h,  0d,   0d,    0d,         0d,           0, 0, "Your advertisment$$"  
+border_1:       db  22d, 20d, 0cbh, 0ch, 20d,  20d,   12d,       45d,           0, 0, "&173&D&165&e&012&d,po&130&pu##mil??$$"   
+border_2:       db  20d, 10d, 0ceh, 40h, 14d,  10d,   11d,       45d,           0, 0, "Goyda goyda goyda$$"    
+border_3:       db  14d, 26d, 117d, 30h, 10d,  14d,   46d,       45d,           0, 0, "Meow meow motherfucker$$"  
 
 
 user_border:    db 11d dup(60d)
