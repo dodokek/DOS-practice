@@ -462,18 +462,21 @@ print_text_border     proc
                 xor cx, cx
                 mov cl, padding_left               ; length counter to move string to new line
 @@next:
+
+                cmp byte ptr [si], "#"
+                je @@newline
+
                 mov al, byte ptr [si]   ; ah = preset_array[i]  
                 mov ah, 0ceh            ; setting color
 
                 stosw                   ; mov es:[di], ax
  
-                inc si                  ; &preset_array++
                 add di, 4d              ; next videomem cell, adding 4 because i got flag std and i don't want to change it
                 inc cl                  ; incrementing length counter
 
                 cmp cl, bl              ; cheching if string goes out of border
                 jne @@no_newline
-
+                @@newline:
                         sub cl, padding_left               ; these 3 ops is basically just \r
                         sub di, cx   
                         sub di, cx            
@@ -484,6 +487,7 @@ print_text_border     proc
 
                 @@no_newline:
 
+                inc si                  ; &preset_array++
                 cmp byte ptr [si], "$"
                 jne @@next
 
@@ -516,9 +520,9 @@ centr_border   proc
 
 
 
-preset_size = 20d        ; DONT FORGET TO CHANGE IF AMOUNT OF ATTRS IS CHANGED!
+preset_size = 43d        ; DONT FORGET TO CHANGE IF AMOUNT OF ATTRS IS CHANGED!
                 ;   X    Y    Color Char Width Height FillerChr  FillerClr      ignr   text             ; don't forget !!!!!!!!!!!!
-border_1:       db  20d, 20d, 0cbh, 0ch, 10d,  20d,   10d,       45d,           0, 0, "Ded, popu m bl l??$              "   ; all presets must be the same size!!!
+border_1:       db  20d, 20d, 0cbh, 0ch, 20d,  20d,   10d,       45d,           0, 0, "Ded, po#pu mil??$                "   ; all presets must be the same size!!!
 border_2:       db  10d, 10d, 0ceh, 40h, 14d,  10d,   11d,       45d,           0, 0, "Goyda goyda goyda$               "    
 border_3:       db  14d, 14d, 0feh, 30h, 10d,  24d,   46d,       45d,           0, 0, "Meow meow motherfucker$          "  
 
