@@ -21,10 +21,8 @@ use_preset = 8d
 preset_num = 9d
 inner_text = 10d
 ;------------------------------------------
-preset_size = 8d        ; DONT FORGET TO CHANGE IF AMOUNT OF ATTRS IS CHANGED!
 
 Start:
-
                 call handle_cmd
 
                 mov bx, 0b800h
@@ -448,16 +446,21 @@ fill_border     proc
 ;	          bx: bh - height, bl - width
 ;       Exit:     None
 ;	Expects:  ES: 0b800h
-;	Destroys: ax, cx di, si
+;	Destroys: ax, cx, di, si
 ;       Returns:  text in the border
 ;------------------------------------------------
+padding_left = 2d
+
 print_text_border     proc
+                push bx                ; adjusting padding
+                sub bl, 1
+
                 add si, inner_text      ; di = preset_array[inner_text]
                 add di, 320d            ; y + 2
                 add di, 4d              ; x + 2
 
-
-                mov cl, 0               ; length counter to move string to new line
+                xor cx, cx
+                mov cl, padding_left               ; length counter to move string to new line
 @@next:
                 mov al, byte ptr [si]   ; ah = preset_array[i]  
                 mov ah, 0ceh            ; setting color
@@ -467,9 +470,25 @@ print_text_border     proc
                 inc si                  ; &preset_array++
                 add di, 4d              ; next videomem cell, adding 4 because i got flag std and i don't want to change it
                 inc cl                  ; incrementing length counter
+
+                cmp cl, bl              ; cheching if string goes out of border
+                jne @@no_newline
+
+                        sub cl, padding_left               ; these 3 ops is basically just \r
+                        sub di, cx   
+                        sub di, cx            
+
+                        add di, 160d                       ; this is just \n
+
+                        mov cl, padding_left               ; counter to origin position
+
+                @@no_newline:
+
                 cmp byte ptr [si], "$"
                 jne @@next
 
+
+                pop bx
                 ret
                 endp
 
@@ -497,10 +516,13 @@ centr_border   proc
 
 
 
-                ;   X    Y    Color Char Width Height FillerChr  FillerClr
-border_1:       db  20d, 20d, 0cbh, 0ch, 60d,  20d,   10d,       45d    
-border_2:       db  10d, 10d, 0ceh, 40h, 20d,  10d,   11d,       45d    
-border_3:       db  14d, 14d, 0feh, 30h, 10d,  24d,   46d,       45d  
+preset_size = 20d        ; DONT FORGET TO CHANGE IF AMOUNT OF ATTRS IS CHANGED!
+                ;   X    Y    Color Char Width Height FillerChr  FillerClr      ignr   text             ; don't forget !!!!!!!!!!!!
+border_1:       db  20d, 20d, 0cbh, 0ch, 10d,  20d,   10d,       45d,           0, 0, "Ded, popu m bl l??$              "   ; all presets must be the same size!!!
+border_2:       db  10d, 10d, 0ceh, 40h, 14d,  10d,   11d,       45d,           0, 0, "Goyda goyda goyda$               "    
+border_3:       db  14d, 14d, 0feh, 30h, 10d,  24d,   46d,       45d,           0, 0, "Meow meow motherfucker$          "  
+
+
 user_border:    db 11d dup(60d)
 user_text:      db 12d dup(40d)
 cmd_buffer:     db 11d dup(40d)
