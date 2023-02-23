@@ -144,7 +144,7 @@ handle_cmd      proc
 ; Translates string, stored in "cmd_buffer" to dec number
 ; And stores it in ax 
 ;------------------------------------------------
-;	Entry:	  decimal number laying in cmd_buffer
+;	Entry:	  decimal number laying in buffer
 ;                 DI - pointer to end of buffer
 ;       Exit:     None
 ;	Expects:  None
@@ -190,17 +190,6 @@ str_to_int      proc
 
                 mov al, bl ; storing the result in al
                 mov ah, 0d ; clearing ah
-
-                ;------printing----------------------------
-
-                ; mov al, bl  ; preparing to print the string
-                ; mov ah, 0   ; to zero unneded part of ax
-
-                ; mov bx, 0b800h ; to videomem
-                ; mov es, bx
-                ; xor bx, bx
-
-                ; call reg2dec
 
                 ret
                 endp
@@ -463,11 +452,41 @@ print_text_border     proc
                 mov cl, padding_left               ; length counter to move string to new line
 @@next:
 
-                cmp byte ptr [si], "#"
+                cmp byte ptr [si], "#"              ; checking if it is newline symbol
                 je @@newline
 
-                mov al, byte ptr [si]   ; ah = preset_array[i]  
+                cmp byte ptr [si], "&"              ; checking if it is user_color symbol
+                jne @@no_user_clr
+
+                        push di                             ; saving di
+
+                        mov di, offset color_buffer         ; mov es:[di], hexnumber
+                        mov ax, [si + 1]                    ; moving to color_buffer decimal number in form XXX 
+                        mov [di], ax
+                        mov ah, byte ptr [si + 3]
+                        mov byte ptr [di+2], ah 
+
+                        add di, 3                           ; di = end of buffer
+                        
+                        push bx
+                        push cx
+                        call str_to_int
+                        pop cx
+                        pop bx
+
+                        mov ah, al                          ; moving color byte
+
+                        add si, 5d                          ; skipping color code to next cool symbol
+                        pop di                              ; restoring di
+
+                        jmp @@user_color
+
+                @@no_user_clr:
                 mov ah, 0ceh            ; setting color
+                @@user_color:
+
+
+                mov al, byte ptr [si]   ; ah = preset_array[i]  
 
                 stosw                   ; mov es:[di], ax
  
@@ -477,6 +496,7 @@ print_text_border     proc
                 cmp cl, bl              ; cheching if string goes out of border
                 jne @@no_newline
                 @@newline:
+
                         sub cl, padding_left               ; these 3 ops is basically just \r
                         sub di, cx   
                         sub di, cx            
@@ -520,16 +540,18 @@ centr_border   proc
 
 
 
-preset_size = 43d        ; DONT FORGET TO CHANGE IF AMOUNT OF ATTRS IS CHANGED!
+preset_size = 48d        ; DONT FORGET TO CHANGE IF AMOUNT OF ATTRS IS CHANGED!
                 ;   X    Y    Color Char Width Height FillerChr  FillerClr      ignr   text             ; don't forget !!!!!!!!!!!!
-border_1:       db  20d, 20d, 0cbh, 0ch, 20d,  20d,   10d,       45d,           0, 0, "Ded, po#pu mil??$                "   ; all presets must be the same size!!!
-border_2:       db  10d, 10d, 0ceh, 40h, 14d,  10d,   11d,       45d,           0, 0, "Goyda goyda goyda$               "    
-border_3:       db  14d, 14d, 0feh, 30h, 10d,  24d,   46d,       45d,           0, 0, "Meow meow motherfucker$          "  
+border_0:       db  0d, 0d,   0h,   0h,  0d,   0d,    0d,         0d,           0, 0, "Your advertisment                     "  
+border_1:       db  20d, 20d, 0cbh, 0ch, 20d,  20d,   10d,       45d,           0, 0, "&173&D&165&e&012&d,po&130&pu##mil??$  "   ; all presets must be the same size!!!
+border_2:       db  10d, 10d, 0ceh, 40h, 14d,  10d,   11d,       45d,           0, 0, "Goyda goyda goyda$                    "    
+border_3:       db  14d, 14d, 0feh, 30h, 10d,  24d,   46d,       45d,           0, 0, "Meow meow motherfucker$               "  
 
 
 user_border:    db 11d dup(60d)
 user_text:      db 12d dup(40d)
 cmd_buffer:     db 11d dup(40d)
+color_buffer:   db 11d dup(40d)
 
 
 include ../mainf.asm
