@@ -20,6 +20,7 @@ arr_fill_clr = 7d
 use_preset = 8d
 preset_num = 9d
 inner_text = 10d
+
 ;------------------------------------------
 
 Start:
@@ -29,9 +30,9 @@ Start:
                 mov es, bx
                 xor bx, bx
 
-                ; mov ah, 0d      ; clearing the screen
-                ; mov al, 0d
-                ; call Clear
+                mov ah, 0d      ; clearing the screen
+                mov al, 0d
+                call Clear
 
                 mov si, offset user_border
 
@@ -66,11 +67,13 @@ Start:
         @@end_calc_preset:
 
         @@no_preset:
+                call zoombox
+                
+                mov bp, 0                               ; enable text
                 mov bh, byte ptr [si + arr_height]      ; passing coordinates and width
                 mov bl, byte ptr [si + arr_width]
                 mov dh, byte ptr [si + arr_x]
                 mov dl, byte ptr [si + arr_y]
-
 
                 call draw_border
 
@@ -215,7 +218,7 @@ str_to_int      proc
 ;------------------------------------------------
 ; Draws the border on the given coordinates
 ;------------------------------------------------
-;	Entry:	  dx: dh - x, dl - y (top-left corner) - now calculated automaticly to centrate the border
+;	Entry:	  dx: dh - x, dl - y
 ;	          bx: bh - height, bl - width
 ;                 SI - pointer to preset array
 ;       Exit:     None
@@ -249,7 +252,13 @@ draw_border     proc
 
                 mov di, ax              ; storing top-left corner to di for function
                 push si                 ; storing si from destroying
+
+                cmp bp, 1               ; if bp = 1, no text in border
+                je @@skip_text
+
                 call print_text_border
+
+                @@skip_text:
                 pop si
                 pop ax
                 push ax
@@ -534,6 +543,102 @@ print_text_border     proc
 
 
 ;------------------------------------------------
+; Draws cool animation on border appearance
+;------------------------------------------------
+;	Entry:	  si - pointer to preset array
+;       Exit:     None
+;       Expects:  es = 0b800h
+;	Destroys: ax, bx, dx, cx
+;------------------------------------------------
+zoombox         proc
+
+                mov bh, byte ptr [si + arr_height]      ; passing coordinates and width
+                mov bl, byte ptr [si + arr_width]
+                mov dh, byte ptr [si + arr_x]
+                mov dl, byte ptr [si + arr_y]
+
+                cmp bh, bl                              ; zoombox works only on square borders
+                jne @@end_l2
+
+                mov ch, bl      ; remembering the orignal width
+                shr ch, 1       ; ch / 2
+@@next:
+                sub bh, 4       ; height - 2
+                sub bl, 2       ; width - 2
+
+                add dh, 2       ; x++
+                add dl, 2       ; y++
+
+                cmp bl, ch      
+                jle @@end_l
+
+                mov bp, 1       ; if bp = 1, no text in border
+
+                push bx         ; saving registers
+                push dx
+                push cx
+
+                call draw_border
+
+                mov cx, 1d      ; wait()
+                mov dx, 0ffffh
+                mov ah, 86h
+                int 15h
+
+                mov ah, 0d      ; clearing the screen
+                mov al, 0d
+                call Clear
+                
+                pop cx          ; restoring registers
+                pop dx
+                pop bx
+
+                jmp @@next
+@@end_l:
+
+        
+@@next2:
+                add bh, 4       ; height - 2
+                add bl, 2       ; width - 2
+
+                sub dh, 2       ; x++
+                sub dl, 2       ; y++
+
+                cmp bl, byte ptr [si + arr_width]       ; in case width is twice smaller, return
+                jge @@end_l2
+
+                mov bp, 1       ; if bp = 1, no text in border
+
+                push bx         ; saving registers
+                push dx
+                push cx
+
+                call draw_border
+
+                mov cx, 1d      ; wait()
+                mov dx, 0ffffh
+                mov ah, 86h
+                int 15h
+ 
+                mov ah, 0d      ; clearing the screen
+                mov al, 0d
+                call Clear
+
+                pop cx          ; restoring registers
+                pop dx
+                pop bx
+
+                jmp @@next2
+@@end_l2:
+                mov ah, 0d      ; clearing the screen
+                mov al, 0d
+                call Clear
+
+                ret
+                endp
+
+
+;------------------------------------------------
 ; Calculates dh and dl for top left corner of the border to centrate it
 ;------------------------------------------------
 ;	Entry:	  bx: bh - height, bl - width
@@ -541,7 +646,7 @@ print_text_border     proc
 ;	Destroys: CX
 ;       Returns:  dh - x, dl - y
 ;------------------------------------------------
-centr_border   proc
+centr_border    proc
                 ; formula 
                 mov dl, 20d     ; y is currently not counting
 
@@ -564,10 +669,10 @@ border_2:       db  20d, 10d, 0ceh, 40h, 14d,  10d,   11d,       45d,           
 border_3:       db  14d, 26d, 117d, 30h, 10d,  14d,   46d,       45d,           0, 0, "Meow meow motherfucker$$"  
 
 
-user_border:    db 11d dup(60d)
-user_text:      db 12d dup(40d)
-cmd_buffer:     db 11d dup(40d)
-color_buffer:   db 11d dup(40d)
+user_border:    db 40d dup(1d)
+user_text:      db 40d dup(0d)
+cmd_buffer:     db 40d dup(0d)
+color_buffer:   db 10d dup(0d)
 
 
 include ../mainf.asm
