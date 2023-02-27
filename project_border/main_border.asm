@@ -24,9 +24,12 @@ inner_text = 10d
 ;------------------------------------------
 
 Start:
+                ; xor ax, ax
+                ; int 10h
+
                 call handle_cmd
 
-                mov bx, 0b800h
+                mov bx, 0b800h  ; es to videomem
                 mov es, bx
                 xor bx, bx
 
@@ -370,7 +373,7 @@ draw_horizontal_fill proc
 
                 mov cx, ax  ; remembering starting point for comparison
 @@next:
-                mov ah, [si + arr_fill] ; adressing to preset array to get color
+                mov ah, [si + arr_fill]      ; adressing to preset array to get color
                 mov al, [si + arr_fill_clr]  ; adressing to preset array to get char
 
                 stosw             ; mov es:[di], ax
@@ -410,8 +413,8 @@ draw_vertical proc
                 mov ch, [si + arr_chr]    ; ch = prest symbol
 
 @@next:
-                mov byte ptr es:[di], ch  ; adressing to preset array to get char
-                mov byte ptr es:[di + 1], cl ; adressing to preset array to get color
+                mov byte ptr es:[di], ch         ; adressing to preset array to get char
+                mov byte ptr es:[di + 1], cl     ; adressing to preset array to get color
 
                 sub di, 160d                     ; moving up on one line
 
@@ -480,7 +483,7 @@ print_text_border     proc
                 cmp byte ptr [si], "#"              ; checking if it is newline symbol
                 je @@newline
 
-                cmp byte ptr [si], "&"              ; checking if it is user_color symbol
+                cmp byte ptr [si], "\"              ; checking if it is user_color symbol
                 jne @@no_user_clr
 
                         push di                             ; saving di
@@ -663,10 +666,11 @@ centr_border    proc
 
 preset_size = 48d        ; DONT FORGET TO CHANGE IF AMOUNT OF ATTRS IS CHANGED!
                 ;   X    Y    Color Char Width Height FillerChr  FillerClr      ignr   text             ; NO SYMBOLS AFTER $$ FUCKERS!!!
-border_0:       db  0d, 0d,   0h,   0h,  0d,   0d,    0d,         0d,           0, 0, "Your advertisment$$"  
-border_1:       db  22d, 20d, 0cbh, 0ch, 20d,  20d,   12d,       45d,           0, 0, "&173&D&165&e&012&d,po&130&pu##mil??$$"   
+border_0:       db  0d,  0d,    0h,  0h,  0d,   0d,    0d,        0d,           0, 0, "Your advertisment$$"  
+border_1:       db  22d, 20d, 0cbh, 0ch, 20d,  20d,   12d,       45d,           0, 0, "\123\D\165\e\012\d,po\130\pu##mil??$$"   
 border_2:       db  20d, 10d, 0ceh, 40h, 14d,  10d,   11d,       45d,           0, 0, "Goyda goyda goyda$$"    
 border_3:       db  14d, 26d, 117d, 30h, 10d,  14d,   46d,       45d,           0, 0, "Meow meow motherfucker$$"  
+border_4:       db  40d, 20d, 80d,   3h, 22d,  22d,   12d,       9d,            0, 0, "###S \123\8 marta bi... woman!!!$$"  
 
 
 user_border:    db 40d dup(1d)
