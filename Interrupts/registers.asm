@@ -7,8 +7,7 @@ locals @@
 
 
 Start:               
-					mov al, 1d
-					call border_main
+					
 
                     xor bx, bx 
                     mov es, bx
@@ -52,7 +51,8 @@ New09               proc
                     cmp al, 2ah                         ; if to print regs
 jne @@skip_print
 
-					
+					mov al, 1d
+					call border_main
 
 
                     pop ax bx cx dx                     ; putting original value of regs to print
