@@ -53,6 +53,9 @@ New08               proc
 					push ax bx cx dx				; to print registers
 
 				;--------Code segment---------------------
+					mov di, offset Output_flag
+					cmp byte ptr cs:[di], 1d
+					jne @@no_print
 
 
 					mov bx, 0b800h					; to videomem
@@ -66,7 +69,12 @@ New08               proc
                     pop dx cx bx ax					; getting regs to print
 					call PrintRegs
 
-                   
+					jmp @@has_print
+                @@no_print:
+
+                    pop dx cx bx ax					; removing garbage
+
+				@@has_print:
 				;--------Code segment---------------------
 
                     mov al, 20h                     ;
@@ -93,14 +101,19 @@ New09               proc
 
                     in al, 60h
                     
-                    cmp al, 2ah                         ; if to print regs
-jne @@skip_print
+                    cmp al, 2ah ;(Shift)                ; if to print regs
+jne @@not_pressed
+					mov di, offset Output_flag			; if shift, Output flag is reversed
 
-                    jmp @@no_skip
-@@skip_print:
+					mov ax, cs:[di]
+					not ax
+					mov cs:[di], ax
+
+                    jmp @@pressed
+@@not_pressed:
 
 
-@@no_skip:
+@@pressed:
                     xor ax, ax                      ;
                     in al, 61h                      ;
                     mov ah, al                      ;
@@ -120,6 +133,8 @@ jne @@skip_print
 
                     db 0eah
 int09h_ptr			dd 0    
+
+Output_flag			db 1
 
                     iret
                     endp
