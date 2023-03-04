@@ -7,24 +7,32 @@ locals @@
 
 
 Start:               
-					
-
-                    xor bx, bx 
-                    mov es, bx
-                    mov bx, 4*9
                     
                     cli                             ; disabling interrupts to work with interrupt table
                     
-                        mov ax, es:[bx]             ; setting jump adress to origin inter func
-                        mov Old09Ofs, ax 
-                        
-                        mov word ptr es:[bx], offset New09   ; setting interrupt table addr to out prog
-                        
-                        mov ax, es:[bx+2]           ; setting segment pointer to original inter func
-                        mov Old09Seg, ax
+					; HOOKING INT 08H
 
-                        mov ax, cs                  ; setting interrupt table segment to code segment
-                        mov es:[bx+2], ax
+						mov ax, 3508h                       ; finds out segment and offset
+						int 21h                             ; of the old 08h handler
+
+						mov word ptr int08h_ptr, bx         ; save old 08h handler
+						mov word ptr int08h_ptr + 2, es     ;
+
+						mov ax, 2508h                       ;
+						mov dx, offset New08          		; changing 08h handler into my own
+						int 21h                             ;
+
+					; HOOKING INT 09H
+					
+						mov ax, 3509h                       ; finds out segment and offset
+						int 21h                             ; of the old 09h handler
+
+						mov word ptr int09h_ptr, bx         ; save old 09h handler
+						mov word ptr int09h_ptr + 2, es     ;
+
+						mov ax, 2509h                       ;
+						mov dx, offset New09	            ; changing 09h handler into my own
+						int 21h                             ;
 
                     sti                         ; allowing interrupts
 
@@ -34,32 +42,64 @@ Start:
                         inc dx                  ; /4 because memory is counted in paragraphs = 16 Bytes
                         int 21h       
 
+New08               proc
+					pusha
+					push es	; saving registers
+					push ds
+
+					push cs ; not fucking up with segments!
+					pop  ds
+
+					push ax bx cx dx				; to print registers
+
+				;--------Code segment---------------------
+
+
+					mov bx, 0b800h					; to videomem
+					mov es, bx
+					xor bx, bx
+                
+					mov al, 1d						; number of border preset
+					call border_main
+
+				    mov di, 2* 160d + 120d          ; coords of registers
+                    pop dx cx bx ax					; getting regs to print
+					call PrintRegs
+
+                   
+				;--------Code segment---------------------
+
+                    mov al, 20h                     ;
+                    out 20h, al                     ;
+
+					pop ds
+					pop es
+					popa
+
+                    
+                    db 0eah
+int08h_ptr          dd 0
+    
+
+                    iret
+                    endp
+
 
 New09               proc
-                    push ax bx es di                ; saving all registers from cock sucking
-                    push dx cx bx ax                ; putting into stack registers to print
+					pusha
+					push es
 
-                    xor bx, bx                      ; es -> videomem
-                    mov bx, 0b800h                  ;
-                    mov es, bx                      ;
-
-                    mov ah, 109d                    ; setting color and coordinate of border
-                    mov di, 2* 160d + 120d          ;
+                    
 
                     in al, 60h
                     
                     cmp al, 2ah                         ; if to print regs
 jne @@skip_print
 
-					mov al, 1d
-					call border_main
-
-
-                    pop ax bx cx dx                     ; putting original value of regs to print
-                    call PrintRegs
                     jmp @@no_skip
 @@skip_print:
-                    pop ax bx cx dx                 ; removing regs to print from stack
+
+
 @@no_skip:
                     xor ax, ax                      ;
                     in al, 61h                      ;
@@ -74,11 +114,12 @@ jne @@skip_print
                     mov al, 20h                     ;
                     out 20h, al                     ;
 
-                    pop di es bx ax                 ; restoring registers
-                    
+
+					pop es
+					popa
+
                     db 0eah
-Old09Ofs            dw 0
-Old09Seg            dw 0     
+int09h_ptr			dd 0    
 
                     iret
                     endp
@@ -770,33 +811,11 @@ zoombox         proc
                 endp
 
 
-;------------------------------------------------
-; Calculates dh and dl for top left corner of the border to centrate it
-;------------------------------------------------
-;	Entry:	  bx: bh - height, bl - width
-;       Exit:     None
-;	Destroys: CX
-;       Returns:  dh - x, dl - y
-;------------------------------------------------
-centr_border    proc
-                ; formula 
-                mov dl, 20d     ; y is currently not counting
-
-                ; for x we have formula: x = (160-width) / 2
-                mov ch, 120d
-                sub ch, bl
-                shr ch, 1
-
-                mov dh, ch      ; moving result x coordinate
-                ret
-                endp
-
-
 
 preset_size = 48d        ; DONT FORGET TO CHANGE IF AMOUNT OF ATTRS IS CHANGED!
                 ;   X    Y    Color Char Width Height FillerChr  FillerClr      ignr   text             ; NO SYMBOLS AFTER $$ FUCKERS!!!
 border_0:       db  0d,  0d,    0h,  0h,  0d,   0d,    0d,        0d,           0, 0, "Your advertisment$$"  
-border_1:       db  114d, 4d, 0cbh, 0ch, 10d,  20d,   0d,       45d,           0, 0, "$$"   
+border_1:       db  114d, 4d, 34h,  0fh, 10d,  20d,   0d,       45d,           0, 0, "$$"   
 border_2:       db  20d, 10d, 0ceh, 40h, 14d,  10d,   11d,       45d,           0, 0, "Goyda goyda goyda$$"    
 border_3:       db  14d, 26d, 117d, 30h, 10d,  14d,   46d,       45d,           0, 0, "Meow meow motherfucker$$"  
 border_4:       db  40d, 20d, 80d,   3h, 22d,  22d,   12d,       9d,            0, 0, "###S \123\8 marta bi... woman!!!$$"  
