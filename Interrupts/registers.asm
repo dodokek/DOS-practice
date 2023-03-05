@@ -6,41 +6,47 @@ org 100h
 locals @@
 
 
-Start:               
-                    
-                    cli                             ; disabling interrupts to work with interrupt table
-                    
-					; HOOKING INT 08H
+Start:                                   
+		cli                             ; disabling interrupts to work with interrupt table
+		
+		; HOOKING INT 08H
 
-						mov ax, 3508h                       ; finds out segment and offset
-						int 21h                             ; of the old 08h handler
+			mov ax, 3508h                       ; finds out segment and offset
+			int 21h                             ; of the old 08h handler
 
-						mov word ptr int08h_ptr, bx         ; save old 08h handler
-						mov word ptr int08h_ptr + 2, es     ;
+			mov word ptr int08h_ptr, bx         ; save old 08h handler
+			mov word ptr int08h_ptr + 2, es     ;
 
-						mov ax, 2508h                       ;
-						mov dx, offset New08          		; changing 08h handler into my own
-						int 21h                             ;
+			mov ax, 2508h                       ;
+			mov dx, offset New08          		; changing 08h handler into my own
+			int 21h                             ;
 
-					; HOOKING INT 09H
-					
-						mov ax, 3509h                       ; finds out segment and offset
-						int 21h                             ; of the old 09h handler
+		; HOOKING INT 09H
+		
+			mov ax, 3509h                       ; finds out segment and offset
+			int 21h                             ; of the old 09h handler
 
-						mov word ptr int09h_ptr, bx         ; save old 09h handler
-						mov word ptr int09h_ptr + 2, es     ;
+			mov word ptr int09h_ptr, bx         ; save old 09h handler
+			mov word ptr int09h_ptr + 2, es     ;
 
-						mov ax, 2509h                       ;
-						mov dx, offset New09	            ; changing 09h handler into my own
-						int 21h                             ;
+			mov ax, 2509h                       ;
+			mov dx, offset New09	            ; changing 09h handler into my own
+			int 21h                             ;
 
-                    sti                         ; allowing interrupts
+		sti                         ; allowing interrupts
 
-                        mov ax, 3100h           ; terminate and stay resident
-                        mov dx, offset EOP
-                        shr dx, 4               ; proper quit for resident progs to solve memory problems
-                        inc dx                  ; /4 because memory is counted in paragraphs = 16 Bytes
-                        int 21h       
+			mov ax, 3100h           ; terminate and stay resident
+			mov dx, offset EOP
+			shr dx, 4               ; proper quit for resident progs to solve memory problems
+			inc dx                  ; /4 because memory is counted in paragraphs = 16 Bytes
+			int 21h       
+
+;------------------------------------------------
+;
+; Catches 08h interrupt, prints registers 
+; and border every tick
+;
+;------------------------------------------------
 
 New08               proc
 					pusha
@@ -50,15 +56,43 @@ New08               proc
 					push cs ; not fucking up with segments!
 					pop  ds
 
-					push ax bx cx dx				; to print registers
 
 				;--------Code segment---------------------
+				push ax bx cx dx				; to print registers
+
 					mov di, offset Output_flag
 					cmp byte ptr cs:[di], 1d
 					jne @@no_print
 
+				; Tripple bufferisation
+					; Compare videomem & draw buffer, transfer
+					; changes to savebuffer
 
-					mov bx, 0b800h					; to videomem
+					mov bx, 0b800h					; es:[di] = videomem begin
+					mov es, bx						
+					xor bx, bx
+					xor di, di
+
+					mov cx, 0
+				@@next:								; comparing all video cells
+
+					mov dx, word ptr es:[di]					; dx = videomem[i]
+					cmp word ptr Draw_Buffer[di], dx		; cmp videomem[i], drawbuff[i]
+					jne @@no_copy
+
+					mov word ptr Save_Buffer[di], dx					; savebuff[i] = videomem[i]
+					add dl, 20
+					mov es:[0], dx
+
+				@@no_copy:
+					add di, 2
+
+					add cx, 2
+					cmp cx, videomem_size
+				jle @@next
+
+
+					mov bx, 0b800h						; printing registers and border to videomem
 					mov es, bx
 					xor bx, bx
                 
@@ -69,13 +103,37 @@ New08               proc
                     pop dx cx bx ax					; getting regs to print
 					call PrintRegs
 
-					jmp @@has_print
+					;---- Tripple bufferisation					
+
+				
+					; Videomem -> draw buffer
+
+					mov bx, 0b800h
+					mov es, bx
+					xor bx, bx
+
+					mov di, 0
+			
+					@@L1:
+						mov ax, es:[di]
+						mov word ptr Draw_Buffer[di], ax
+
+						add di, 2                     ; counter += 1
+						cmp di, videomem_size
+						jge @@end_loop
+
+						jmp @@L1
+					@@end_loop:	
+
+
+				jmp @@has_print
                 @@no_print:
 
                     pop dx cx bx ax					; removing garbage
 
 				@@has_print:
-				;--------Code segment---------------------
+
+				;--------Code segment.End---------------------
 
                     mov al, 20h                     ;
                     out 20h, al                     ;
@@ -92,28 +150,66 @@ int08h_ptr          dd 0
                     iret
                     endp
 
-
+;------------------------------------------------
+;
+; Catches 09h interrupt, if shift pressed, changes
+; output-flag
+;
+;------------------------------------------------
 New09               proc
 					pusha
 					push es
+					push ds
 
-                    
+					push cs ; not fucking up with segments!
+					pop  ds
+
+				;---------- Code segment----------------
 
                     in al, 60h
                     
                     cmp al, 2ah ;(Shift)                ; if to print regs
-jne @@not_pressed
-					mov di, offset Output_flag			; if shift, Output flag is reversed
+					jne @@not_pressed
 
-					mov ax, cs:[di]
-					not ax
-					mov cs:[di], ax
+						mov di, offset Output_flag			; if shift, Output flag is reversed
+						mov ax, cs:[di]
+						not ax
+						mov cs:[di], ax
+						
+						cmp ax, 1d							; if drawing was toggled on before, print save buffer
+						je @@no_flush
+
+						; Save buffer -> videomem
+
+						mov bx, 0b800h
+						mov es, bx
+						xor bx, bx
+
+						mov di, 0
+				
+						@@L1:
+							mov ax, word ptr Save_Buffer[di]
+							mov word ptr es:[di], ax
+
+							add di, 2                      ; counter += 2
+							cmp di, videomem_size
+							jge @@end_loop
+
+							jmp @@L1
+						@@end_loop:	
+
+						;-------------------------------
+
+						@@no_flush:
+					
 
                     jmp @@pressed
 @@not_pressed:
 
 
 @@pressed:
+				;---------- Code segment.End----------------
+
                     xor ax, ax                      ;
                     in al, 61h                      ;
                     mov ah, al                      ;
@@ -127,7 +223,7 @@ jne @@not_pressed
                     mov al, 20h                     ;
                     out 20h, al                     ;
 
-
+					pop ds
 					pop es
 					popa
 
@@ -135,6 +231,16 @@ jne @@not_pressed
 int09h_ptr			dd 0    
 
 Output_flag			db 1
+
+
+; Чзх, тройная буферизация, Мама Мия! Но где же тот таинственный третий буфер?
+
+videomem_size = 16d
+
+Draw_Buffer			db videomem_size dup(11d)	; draw buffer in which everything draws instead videomem and after
+Save_Buffer			db videomem_size dup(21d)	; save buffer to save everything under the border				
+										; being compared with dos window. Then copied to videomem.
+										; after comparison any mismatches are transported to save buffer
 
                     iret
                     endp
@@ -178,6 +284,11 @@ PrintRegs   proc
             ret
             endp
 
+;----------------------------------------------
+; Here are string functions for triple bufferisation
+include string_f.asm
+;
+;-----------------------------------------------
 
 ;------------------------------------------------
 ;	Prints ax register on the screen in hehehex
@@ -185,7 +296,7 @@ PrintRegs   proc
 ;  Entry:		ax = number to print
 ;				dx = coords on screen
 ;  Exit:		none
-;  Expects:		ES = 0b800h (VIDEO SEGMENT)
+;  Expects:		ES = 0b800h
 ;  Destroys:	ax, cx, dx, di
 ;------------------------------------------------
 
@@ -288,32 +399,19 @@ inner_text = 10d
 ;------------------------------------------------
 ;  Entry:		al = preset number
 ;  Exit:		none
+;  Expects:     es = ptr to video buffer
 ;  Destroys:	all
 ;------------------------------------------------
 
 border_main     proc
-                ; xor ax, ax
-                ; int 10h
 
-                ; call handle_cmd
-
-                mov bx, 0b800h  ; es to videomem
-                mov es, bx
-                xor bx, bx
+                ; mov bx, 0b800h  ; es to videomem
+                ; mov es, bx
+                ; xor bx, bx
 
                 ; mov ah, 0d      ; clearing the screen
                 ; mov al, 0d
                 ; call Clear
-
-                ; mov si, offset user_border
-
-        ;         mov al, byte ptr [si + preset_num]      ; just checking
-        ;         xor ax, ax                              ; ax = 0
-
-        ; cmp byte ptr [si + use_preset], 0               ; cheching if there is option to use preset
-        ; je @@no_preset
-
-        ;         mov al, byte ptr [si + preset_num]      ; now in al the number of preset to load
 
                 mov si, offset border_1                 ; si = ptr to begin of first preset
                 mov cl, 1                               ; enabling counter of preset arrays
@@ -831,7 +929,7 @@ preset_size = 48d        ; DONT FORGET TO CHANGE IF AMOUNT OF ATTRS IS CHANGED!
                 ;   X    Y    Color Char Width Height FillerChr  FillerClr      ignr   text             ; NO SYMBOLS AFTER $$ FUCKERS!!!
 border_0:       db  0d,  0d,    0h,  0h,  0d,   0d,    0d,        0d,           0, 0, "Your advertisment$$"  
 border_1:       db  114d, 4d, 34h,  0fh, 10d,  20d,   0d,       45d,           0, 0, "$$"   
-border_2:       db  20d, 10d, 0ceh, 40h, 14d,  10d,   11d,       45d,           0, 0, "Goyda goyda goyda$$"    
+border_2:       db   0d, 0d, 0ceh,  40h, 79d,  45d,   11d,       45d,           0, 0, "Goyda goyda goyda$$"    
 border_3:       db  14d, 26d, 117d, 30h, 10d,  14d,   46d,       45d,           0, 0, "Meow meow motherfucker$$"  
 border_4:       db  40d, 20d, 80d,   3h, 22d,  22d,   12d,       9d,            0, 0, "###S \123\8 marta bi... woman!!!$$"  
 
