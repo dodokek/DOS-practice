@@ -57,9 +57,9 @@ New08               proc
 					push cs ; not fucking up with segments!
 					pop  ds
 
-
 				;--------Code segment---------------------
-				push ax bx cx dx				; to print registers
+
+					push ax bx cx dx				; to print registers
 
 					mov di, offset Output_flag
 					cmp byte ptr cs:[di], 1d
@@ -126,6 +126,27 @@ New08               proc
 				jmp @@has_print
                 @@no_print:
 
+					; videomem -> savebuffer
+					mov bx, 0b800h
+					mov es, bx
+					xor bx, bx
+
+					mov di, 0
+					mov si, offset Save_Buffer			
+					@@L2:
+
+						mov ax, es:[di]
+						mov word ptr [si], ax
+
+						add di, 2                     ; counter += 1
+						add si, 2                     ; counter += 1
+						cmp di, videomem_size
+						jge @@end_loop2
+
+						jmp @@L2
+					@@end_loop2:	
+
+
                     pop dx cx bx ax					; removing garbage
 
 				@@has_print:
@@ -174,7 +195,7 @@ New09               proc
 						not ax
 						mov cs:[di], ax
 						
-						cmp ax, 1d							; if drawing was toggled on before, print save buffer
+						cmp ax, 0d							; if drawing was toggled on before, print save buffer
 						je @@no_flush
 
 						; Save buffer -> videomem
@@ -199,13 +220,8 @@ New09               proc
 						;-------------------------------
 
 						@@no_flush:
-					
-
-                    jmp @@pressed
 @@not_pressed:
 
-
-@@pressed:
 				;---------- Code segment.End----------------
 
                     xor ax, ax                      ;
