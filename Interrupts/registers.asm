@@ -3,7 +3,7 @@
 .386
 org 100h
 
-locals @@
+locals @@			; Сравнение db и vd ->
 
 
 Start:                                   
@@ -50,6 +50,7 @@ Start:
 
 New08               proc
 					pusha
+					push di
 					push es	; saving registers
 					push ds
 
@@ -73,24 +74,18 @@ New08               proc
 					xor bx, bx
 					xor di, di
 
-					mov cx, 0
 				@@next:								; comparing all video cells
 
 					mov dx, word ptr es:[di]					; dx = videomem[i]
 					cmp word ptr Draw_Buffer[di], dx		; cmp videomem[i], drawbuff[i]
-					jne @@no_copy
+					je @@no_copy
 
 					mov word ptr Save_Buffer[di], dx					; savebuff[i] = videomem[i]
-					add dl, 20
-					mov es:[0], dx
 
 				@@no_copy:
 					add di, 2
-
-					add cx, 2
-					cmp cx, videomem_size
-				jle @@next
-
+					cmp di, videomem_size
+				jl  @@next
 
 					mov bx, 0b800h						; printing registers and border to videomem
 					mov es, bx
@@ -113,12 +108,14 @@ New08               proc
 					xor bx, bx
 
 					mov di, 0
-			
+					mov si, offset Draw_Buffer			
 					@@L1:
+
 						mov ax, es:[di]
-						mov word ptr Draw_Buffer[di], ax
+						mov word ptr [si], ax
 
 						add di, 2                     ; counter += 1
+						add si, 2                     ; counter += 1
 						cmp di, videomem_size
 						jge @@end_loop
 
@@ -140,6 +137,7 @@ New08               proc
 
 					pop ds
 					pop es
+					pop di
 					popa
 
                     
@@ -235,7 +233,7 @@ Output_flag			db 1
 
 ; Чзх, тройная буферизация, Мама Мия! Но где же тот таинственный третий буфер?
 
-videomem_size = 16d
+videomem_size = 160 * 25d
 
 Draw_Buffer			db videomem_size dup(11d)	; draw buffer in which everything draws instead videomem and after
 Save_Buffer			db videomem_size dup(21d)	; save buffer to save everything under the border				
